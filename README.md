@@ -1,2 +1,2 @@
 # tasker
-Write down a task, set its priority and assumed time, and sort them.
+Write down tasks, set their priorities and assumed completion time, and sort them.
