@@ -8,7 +8,7 @@
         Title="Tasks" Height="350" Width="525">
     <Grid>
         <DataGrid x:Name="dataGrid" HorizontalAlignment="Left" Margin="10,60,0,0" VerticalAlignment="Top" Height="236" Width="497" />
-        <Button x:Name="SortButton" Content="Sort" HorizontalAlignment="Left" Margin="10,33,0,0" VerticalAlignment="Top" Width="75" Click="sortButton_Click"/>
+        <Button x:Name="sortButton" Content="Sort" HorizontalAlignment="Left" Margin="10,33,0,0" VerticalAlignment="Top" Width="75" Click="sortButton_Click"/>
 
     </Grid>
 </Window>

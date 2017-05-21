@@ -2,91 +2,132 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Tasker
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
-        public List<Task> Tasks;
-        public bool WasSegregated;
+        #region Fields
+        private string FilePath;
+
+        private List<Task> Tasks;
+
+        // used to check if any of the items has actually changed
+        private List<Task> TasksSnapshot;
+
+        private bool WasSorted;
+
+        #endregion
+
+
+        #region Methods
 
         public MainWindow()
         {
             InitializeComponent();
 
-            ReadTasksFromFile();
+            FilePath = "./tasks";
+
+            ReadFromFile();
+
+            TasksSnapshot = Task.CopyTasks(Tasks);
 
             dataGrid.ItemsSource = Tasks;
             dataGrid.SelectedCellsChanged += DataGrid_SelectedCellsChanged;
         }
 
-        private void DataGrid_SelectedCellsChanged(object sender, SelectedCellsChangedEventArgs e)
+        private void ReadFromFile()
         {
-            string json = Newtonsoft.Json.JsonConvert.SerializeObject(Tasks);
-            System.IO.File.WriteAllText(@"C:/tasks.txt", json);
-            WasSegregated = false;
-        }
+            string tasksFromFile = null;
 
-        private void ReadTasksFromFile()
-        {
-            string tasksFromDesktop = null;
-            if (File.Exists("C:/tasks.txt"))
+            if (File.Exists(FilePath))
             {
-                using (StreamReader fs = new StreamReader("C:/tasks.txt"))
+                using (StreamReader fs = new StreamReader(FilePath))
                 {
-                    tasksFromDesktop = fs.ReadToEnd();
+                    tasksFromFile = fs.ReadToEnd();
                 }
 
-                Tasks = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Task>>(tasksFromDesktop);
+                Tasks = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Task>>(tasksFromFile);
             }
             else
+            {
                 Tasks = new List<Task>();
+            }
+        }
+        
+
+        private void DataGrid_SelectedCellsChanged(object sender, SelectedCellsChangedEventArgs e)
+        {
+            // NOTE this is a slightly better solution than saving to file every time the event is fired (which was happening)
+            for (int i = 0; i < e.RemovedCells.Count; i++)
+            {
+                Task changed = e.RemovedCells[i].Item as Task;
+                if (changed != null && (TasksSnapshot.Any(o => o.Description == changed.Description && o.Priority == changed.Priority && o.TimeNeededHours == changed.TimeNeededHours) == false))
+                {
+                    SaveToFile();
+                    TasksSnapshot = Task.CopyTasks(Tasks);
+
+                    break;
+                }
+            }
+
+            WasSorted = false;
         }
 
+        private void SaveToFile()
+        {
+            string json = Newtonsoft.Json.JsonConvert.SerializeObject(Tasks);
+            File.WriteAllText(FilePath, json);
+        }
 
         private void sortButton_Click(object sender, RoutedEventArgs e)
         {
-            if (WasSegregated) return;
+            if (WasSorted) return;
 
             for (int i = 0; i < Tasks.Count; i++)
             {
-                int newBest = LoopAndFindBest(i);
-                Task tmp = Tasks[i];
+                int newBest = FindBestTask(i);
 
-                Tasks[i] = Tasks[newBest];
-                Tasks[newBest] = tmp;
+                if (newBest != i) Swap(i, newBest);
             }
+
             dataGrid.ItemsSource = null;
             dataGrid.ItemsSource = Tasks;
-            WasSegregated = true;
+
+            WasSorted = true;
+
+            SaveToFile();
         }
 
-        private int LoopAndFindBest(int currentIndex)
+        private int FindBestTask(int currentIndex)
         {
             for (int i = currentIndex + 1; i < Tasks.Count; i++)
             {
-                if ((Tasks[i].Priority > Tasks[currentIndex].Priority && Tasks[i].TimeNeededHours < Tasks[currentIndex].TimeNeededHours) ||
-                    (Tasks[i].Priority < Tasks[currentIndex].Priority && Tasks[i].TimeNeededHours < Tasks[currentIndex].TimeNeededHours && (Tasks[currentIndex].TimeNeededHours > Tasks[i].TimeNeededHours + (Math.Abs(Tasks[i].Priority - Tasks[currentIndex].Priority) * 2))) ||
-                    (Tasks[i].TimeNeededHours > Tasks[currentIndex].TimeNeededHours && Tasks[i].Priority > Tasks[currentIndex].Priority && (Tasks[currentIndex].TimeNeededHours < Tasks[i].TimeNeededHours + (Math.Abs(Tasks[i].Priority - Tasks[currentIndex].Priority) * 2))) ||
-                    (Tasks[i].Priority > Tasks[currentIndex].Priority && (Tasks[i].TimeNeededHours < Tasks[currentIndex].TimeNeededHours+(Math.Abs(Tasks[currentIndex].TimeNeededHours - Tasks[i].TimeNeededHours)*2))))
+                Task currentTask = Tasks[currentIndex];
+                Task taskToCheck = Tasks[i];
+                bool newPriorityHigher = taskToCheck.Priority >= currentTask.Priority;
+                bool newTimeSmaller = taskToCheck.TimeNeededHours <= currentTask.TimeNeededHours;
+                bool newTimeSmallerThanPriority = !newTimeSmaller && newPriorityHigher && taskToCheck.TimeNeededHours < currentTask.TimeNeededHours + (Math.Abs(taskToCheck.Priority - currentTask.Priority) * 2);
+                bool newPriorityHigherThanTime = !newPriorityHigher && newTimeSmaller && taskToCheck.Priority > currentTask.Priority - (Math.Abs(currentTask.TimeNeededHours - taskToCheck.TimeNeededHours) * 0.5);
+
+                if (newPriorityHigher && newTimeSmaller ||
+                    newTimeSmallerThanPriority ||
+                    newPriorityHigherThanTime)
                     currentIndex = i;
             }
 
             return currentIndex;
         }
+
+        private void Swap(int oldIndex, int newIndex)
+        {
+            Task tmp = Tasks[oldIndex];
+            Tasks[oldIndex] = Tasks[newIndex];
+            Tasks[newIndex] = tmp;
+        }
+
+        #endregion
     }
 }

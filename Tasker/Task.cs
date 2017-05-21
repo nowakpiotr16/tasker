@@ -1,10 +1,32 @@
-﻿namespace Tasker
+﻿using System.Collections.Generic;
+
+namespace Tasker
 {
     public class Task
     {
+        #region Fields
+
         private double timeNeededHours;
         private int priority;
         private string description;
+
+        #endregion
+
+
+        #region Constructors
+
+        public Task() { }
+        public Task(Task original)
+        {
+            this.TimeNeededHours = original.TimeNeededHours;
+            this.Priority = original.Priority;
+            this.Description = original.Description;
+        }
+
+        #endregion
+
+
+        #region Properties
 
         public int Priority
         {
@@ -45,5 +67,22 @@
                 timeNeededHours = value;
             }
         }
+
+        #endregion
+
+
+        #region Methods
+
+        public static List<Task> CopyTasks(List<Task> tasks)
+        {
+            List<Task> copyList = new List<Task>();
+
+            foreach (Task original in tasks)
+                copyList.Add(new Task(original));
+
+            return copyList;
+        }
+
+        #endregion
     }
 }
